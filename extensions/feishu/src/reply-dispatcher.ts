@@ -78,7 +78,7 @@ export type CreateFeishuReplyDispatcherParams = {
   runtime: RuntimeEnv;
   chatId: string;
   replyToMessageId?: string;
-  /** When true, send as a fresh message without reply metadata or reply-target reactions. */
+  /** When true, preserve typing indicator on reply target but send messages without reply metadata */
   skipReplyToInMessages?: boolean;
   replyInThread?: boolean;
   /** True when inbound message is already inside a thread/topic context */
@@ -125,7 +125,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         if (!(account.config.typingIndicator ?? true)) {
           return;
         }
-        if (!sendReplyToMessageId) {
+        if (!replyToMessageId) {
           return;
         }
         // Skip typing indicator for old messages — likely replays after context
@@ -145,7 +145,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         }
         typingState = await addTypingIndicator({
           cfg,
-          messageId: sendReplyToMessageId,
+          messageId: replyToMessageId,
           accountId,
           runtime: params.runtime,
         });
@@ -273,7 +273,7 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         const cardHeader = resolveCardHeader(agentId, identity);
         const cardNote = resolveCardNote(agentId, identity, prefixContext.prefixContext);
         await streaming.start(chatId, resolveReceiveIdType(chatId), {
-          replyToMessageId: sendReplyToMessageId,
+          replyToMessageId,
           replyInThread: effectiveReplyInThread,
           rootId,
           header: cardHeader,

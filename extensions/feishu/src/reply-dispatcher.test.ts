@@ -230,6 +230,23 @@ describe("createFeishuReplyDispatcher streaming behavior", () => {
     );
   });
 
+  it("skips typing indicator when reply metadata is disabled", async () => {
+    createFeishuReplyDispatcher({
+      cfg: {} as never,
+      agentId: "agent",
+      runtime: {} as never,
+      chatId: "oc_chat",
+      replyToMessageId: "drive-comment:evt_123",
+      skipReplyToInMessages: true,
+      messageCreateTimeMs: Date.now() - 30_000,
+    });
+
+    const options = createReplyDispatcherWithTypingMock.mock.calls[0]?.[0];
+    await options.onReplyStart?.();
+
+    expect(addTypingIndicatorMock).not.toHaveBeenCalled();
+  });
+
   it("keeps auto mode plain text on non-streaming send path", async () => {
     const { options } = createDispatcherHarness();
     await options.deliver({ text: "plain text" }, { kind: "final" });
@@ -632,6 +649,26 @@ describe("createFeishuReplyDispatcher streaming behavior", () => {
         replyInThread: true,
         header: { title: "agent", template: "blue" },
         note: "Agent: agent",
+      }),
+    );
+  });
+
+  it("omits reply metadata for streaming when skipReplyToInMessages is enabled", async () => {
+    const { options } = createDispatcherHarness({
+      runtime: createRuntimeLogger(),
+      replyToMessageId: "drive-comment:evt_123",
+      skipReplyToInMessages: true,
+      replyInThread: true,
+    });
+    await options.deliver({ text: "```ts\nconst x = 1\n```" }, { kind: "final" });
+
+    expect(streamingInstances).toHaveLength(1);
+    expect(streamingInstances[0].start).toHaveBeenCalledWith(
+      "oc_chat",
+      "chat_id",
+      expect.objectContaining({
+        replyToMessageId: undefined,
+        replyInThread: true,
       }),
     );
   });

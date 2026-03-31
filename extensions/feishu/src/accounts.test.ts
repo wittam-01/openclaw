@@ -245,10 +245,17 @@ describe("resolveFeishuCredentials", () => {
     }
   });
 
-  it("preserves unresolved SecretRef diagnostics for env refs in default mode", () => {
+  it("resolves env SecretRef in default mode when env var is present", () => {
     const key = "FEISHU_APP_SECRET_POLICY_TEST";
     withEnvVar(key, "secret_from_env", () => {
-      expectUnresolvedEnvSecretRefError(key);
+      const creds = resolveFeishuCredentials(
+        asConfig({
+          appId: "cli_123",
+          appSecret: { source: "env", provider: "default", id: key } as never,
+        }),
+      );
+
+      expect(creds?.appSecret).toBe("secret_from_env");
     });
   });
 
@@ -432,6 +439,30 @@ describe("resolveFeishuAccount", () => {
 
     expect(caught).toBeInstanceOf(FeishuSecretRefUnavailableError);
     expect((caught as Error).message).toMatch(/channels\.feishu\.appSecret: unresolved SecretRef/i);
+  });
+
+  it("resolves env SecretRef objects in runtime account resolution", () => {
+    const key = "FEISHU_RUNTIME_APP_SECRET_TEST";
+    withEnvVar(key, " runtime_secret ", () => {
+      const account = resolveFeishuRuntimeAccount({
+        cfg: {
+          channels: {
+            feishu: {
+              accounts: {
+                main: {
+                  appId: "cli_123",
+                  appSecret: { source: "env", provider: "default", id: key } as never,
+                } as never,
+              },
+            },
+          },
+        } as never,
+        accountId: "main",
+      });
+
+      expect(account.configured).toBe(true);
+      expect(account.appSecret).toBe("runtime_secret");
+    });
   });
 
   it("does not throw when account name is non-string", () => {

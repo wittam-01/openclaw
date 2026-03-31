@@ -75,13 +75,17 @@ function resolveFeishuSecretLike(params: {
     return undefined;
   }
 
-  if (params.mode === "inspect") {
-    if (params.allowEnvSecretRefRead && ref.source === "env") {
-      const envValue = normalizeString(process.env[ref.id]);
-      if (envValue) {
-        return envValue;
-      }
+  // Feishu commonly uses env-backed app credentials. Accept them in both
+  // inspect and runtime paths so daemonized channel startup can resolve the
+  // same state-dir/launchd environment that status surfaces already inspect.
+  if (params.allowEnvSecretRefRead && ref.source === "env") {
+    const envValue = normalizeString(process.env[ref.id]);
+    if (envValue) {
+      return envValue;
     }
+  }
+
+  if (params.mode === "inspect") {
     return undefined;
   }
 

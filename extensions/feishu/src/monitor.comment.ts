@@ -437,51 +437,42 @@ function buildDriveCommentPrompt(params: {
   targetReplyText?: string;
 }): string {
   const documentLabel = params.documentTitle
-    ? `《${params.documentTitle}》`
-    : `${params.fileType} 文档 ${params.fileToken}`;
-  const actionLabel = params.noticeType === "add_reply" ? "回复" : "评论";
+    ? `"${params.documentTitle}"`
+    : `${params.fileType} document ${params.fileToken}`;
+  const actionLabel = params.noticeType === "add_reply" ? "reply" : "comment";
   const firstLine = params.targetReplyText
-    ? `我在 ${documentLabel} 中添加了一条${actionLabel}：${params.targetReplyText}`
-    : `我在 ${documentLabel} 中添加了一条${actionLabel}。`;
+    ? `I added a ${actionLabel} in ${documentLabel}: ${params.targetReplyText}`
+    : `I added a ${actionLabel} in ${documentLabel}.`;
   const lines = [firstLine];
   if (
     params.noticeType === "add_reply" &&
     params.rootCommentText &&
     params.rootCommentText !== params.targetReplyText
   ) {
-    lines.push(`原评论：${params.rootCommentText}`);
+    lines.push(`Original comment: ${params.rootCommentText}`);
   }
   if (params.quoteText) {
-    lines.push(`评论引用内容：${params.quoteText}`);
+    lines.push(`Quoted content: ${params.quoteText}`);
   }
   if (params.isMentioned === true) {
-    lines.push("这条评论提到了你。");
+    lines.push("This comment mentioned you.");
   }
   if (params.documentUrl) {
-    lines.push(`文档链接：${params.documentUrl}`);
+    lines.push(`Document link: ${params.documentUrl}`);
   }
-  lines.push(`事件类型：${params.noticeType}`);
-  lines.push(`file_token：${params.fileToken}`);
-  lines.push(`file_type：${params.fileType}`);
   lines.push(
-    "这是飞书文档评论事件，不是普通即时消息对话。不要直接回复当前 Feishu 会话，也不要把这次事件当成需要发送 IM 文本回复。",
+    `Event type: ${params.noticeType}`,
+    `file_token: ${params.fileToken}`,
+    `file_type: ${params.fileType}`,
+    "This is a Feishu document comment event, not a normal instant-message conversation. Do not reply directly in the current Feishu chat, and do not treat this event as something that requires sending an IM text reply.",
+    "If you need to inspect or handle the comment thread, prefer the feishu_drive tools: use list_comments / list_comment_replies to inspect comments, add_comment to add a new comment, and reply_comment to reply in the thread.",
+    "If the user asks a question in the comment, reply with the answer in that comment thread via feishu_drive.reply_comment.",
+    "If you modify the document, after finishing also use feishu_drive.reply_comment in that comment thread to tell the user the update is complete.",
+    "If you decide to add a new comment in the document, use feishu_drive.add_comment; if you decide to reply in the current comment thread, use feishu_drive.reply_comment.",
+    "When you produce a user-visible reply, keep it in the same language as the user's original comment or reply unless they explicitly ask for another language.",
+    "After comment-related tool calls have completed the user-visible action, output only NO_REPLY at the end to avoid sending an extra instant message; do not output the final answer directly as a normal chat reply.",
   );
-  lines.push(
-    "如果需要查看或处理评论线程，请优先使用 feishu_drive 工具：查看评论用 list_comments / list_comment_replies，新增评论用 add_comment，回复评论用 reply_comment。",
-  );
-  lines.push(
-    "如果用户在评论里提出问题，最终请通过 feishu_drive.reply_comment 在该评论线程中回复答案。",
-  );
-  lines.push(
-    "如果你修改了文档，也请在完成后通过 feishu_drive.reply_comment 在该评论线程中告知用户已修改完成。",
-  );
-  lines.push(
-    "如果你决定在文档里新增评论，使用 feishu_drive.add_comment；如果你决定回复当前评论线程，使用 feishu_drive.reply_comment。",
-  );
-  lines.push(
-    "当评论相关工具调用已经完成用户可见动作后，最终请只输出 NO_REPLY，避免再额外发送一条即时消息；不要把最终答案直接作为普通聊天回复输出。",
-  );
-  lines.push(`请根据这次文档${actionLabel}事件决定接下来要做什么。`);
+  lines.push(`Decide what to do next based on this document ${actionLabel} event.`);
   return lines.join("\n");
 }
 
@@ -499,74 +490,55 @@ function buildDriveCommentSurfacePrompt(params: {
   targetReplyText?: string;
 }): string {
   const documentLabel = params.documentTitle
-    ? `《${params.documentTitle}》`
-    : `${params.fileType} 文档 ${params.fileToken}`;
-  const actionLabel = params.noticeType === "add_reply" ? "回复" : "评论";
+    ? `"${params.documentTitle}"`
+    : `${params.fileType} document ${params.fileToken}`;
+  const actionLabel = params.noticeType === "add_reply" ? "reply" : "comment";
   const firstLine = params.targetReplyText
-    ? `用户在 ${documentLabel} 中新增了一条${actionLabel}：${params.targetReplyText}`
-    : `用户在 ${documentLabel} 中新增了一条${actionLabel}。`;
+    ? `The user added a ${actionLabel} in ${documentLabel}: ${params.targetReplyText}`
+    : `The user added a ${actionLabel} in ${documentLabel}.`;
   const lines = [firstLine];
   if (
     params.noticeType === "add_reply" &&
     params.rootCommentText &&
     params.rootCommentText !== params.targetReplyText
   ) {
-    lines.push(`原评论：${params.rootCommentText}`);
+    lines.push(`Original comment: ${params.rootCommentText}`);
   }
   if (params.quoteText) {
-    lines.push(`评论引用内容：${params.quoteText}`);
+    lines.push(`Quoted content: ${params.quoteText}`);
   }
   if (params.isMentioned === true) {
-    lines.push("这条评论提到了你。");
+    lines.push("This comment mentioned you.");
   }
   if (params.documentUrl) {
-    lines.push(`文档链接：${params.documentUrl}`);
+    lines.push(`Document link: ${params.documentUrl}`);
   }
-  lines.push(`事件类型：${params.noticeType}`);
-  lines.push(`file_token：${params.fileToken}`);
-  lines.push(`file_type：${params.fileType}`);
-  lines.push(`comment_id：${params.commentId}`);
+  lines.push(
+    `Event type: ${params.noticeType}`,
+    `file_token: ${params.fileToken}`,
+    `file_type: ${params.fileType}`,
+    `comment_id: ${params.commentId}`,
+  );
   if (params.replyId?.trim()) {
-    lines.push(`reply_id：${params.replyId.trim()}`);
+    lines.push(`reply_id: ${params.replyId.trim()}`);
   }
   lines.push(
-    "这是飞书文档评论线程事件，不是 Feishu IM 对话。你的最终文本回复会自动发布到当前评论线程，不会发送到即时消息。",
+    "This is a Feishu document comment-thread event, not a Feishu IM conversation. Your final text reply will be posted automatically to the current comment thread and will not be sent as an instant message.",
+    "If you need to inspect or handle the comment thread, prefer the feishu_drive tools: use list_comments / list_comment_replies to inspect comments, and use reply_comment/add_comment to notify the user after modifying the document.",
+    'If the comment asks you to modify document content, such as adding, inserting, replacing, or deleting text, tables, or headings, you must first use feishu_doc to actually modify the document. Do not reply with only "done", "I\'ll handle it", or a restated plan without calling tools.',
+    'If the comment quotes document content, that quoted text is usually the edit anchor. For requests like "insert xxx below this content", first locate the position around the quoted content, then use feishu_doc to make the change.',
+    'If the comment asks you to summarize, explain, rewrite, translate, refine, continue, or review the document content "below", "above", "this paragraph", "this section", or the quoted content, you must also treat the quoted content as the primary target anchor instead of defaulting to the whole document.',
+    'For requests like "summarize the content below", "explain this section", or "continue writing from here", first locate the relevant document fragment based on the comment\'s quoted content. If the quote is not sufficient to support the answer, then use feishu_doc.read or feishu_doc.list_blocks to read nearby context.',
+    "Do not guess document content based only on the comment text, and do not output a vague summary before reading enough context. Unless the user explicitly asks to summarize the entire document, default to handling only the local scope related to the quoted content.",
+    "When document edits are involved, first use feishu_doc.read or feishu_doc.list_blocks to confirm the context, then use feishu_doc writing or updating capabilities to complete the change. After the edit succeeds, notify the user through feishu_drive.reply_comment.",
+    "If the document edit fails or you cannot locate the anchor, do not pretend it succeeded. Reply clearly in the comment thread with the reason for failure or the missing information.",
+    "If this is a reading-comprehension task, such as summarization, explanation, or extraction, you may directly output the final answer text after confirming the context. The system will automatically reply with that answer in the current comment thread.",
+    "When you produce a user-visible reply, keep it in the same language as the user's original comment or reply unless they explicitly ask for another language.",
+    "If you have already completed the user-visible action through feishu_drive.reply_comment or feishu_drive.add_comment, output NO_REPLY at the end to avoid duplicate sending.",
+    "If the user directly asks a question in the comment and a plain text answer is sufficient, output the answer text directly. The system will automatically reply with your final answer in the current comment thread.",
+    "If you determine that the current comment does not require any user-visible action, output NO_REPLY at the end.",
   );
-  lines.push(
-    "如果你需要查看或处理评论线程，请优先使用 feishu_drive 工具：查看评论用 list_comments / list_comment_replies，修改文档后可用 reply_comment/add_comment 告知用户。",
-  );
-  lines.push(
-    "如果评论要求你修改文档内容（例如新增、插入、替换、删除文本/表格/标题），必须先使用 feishu_doc 实际修改文档；禁止只回复“已处理”“我会处理”或复述计划而不调用工具。",
-  );
-  lines.push(
-    "如果评论引用了文档内容，这段引用通常就是修改锚点。像“在这段内容下面插入 xxx”这类请求，应优先围绕引用内容定位，再用 feishu_doc 执行修改。",
-  );
-  lines.push(
-    "如果评论要求你总结、解释、改写、翻译、提炼、续写或检查“下面/上面/这段/这部分/引用内容”的文档内容，也必须把评论引用内容优先视为目标锚点，而不是默认针对整篇文档。",
-  );
-  lines.push(
-    "遇到“总结下面的内容”“解释这段内容”“基于这里继续写”等请求时，应先根据评论引用内容定位文档相关片段；如果引用内容不足以支撑回答，再使用 feishu_doc.read 或 feishu_doc.list_blocks 补充读取附近上下文。",
-  );
-  lines.push(
-    "不要仅凭评论文字臆测文档内容，也不要在没有读取到足够上下文时直接输出笼统总结。除非用户明确要求总结整篇文档，否则默认只处理与引用内容相关的局部范围。",
-  );
-  lines.push(
-    "涉及文档修改时，建议先用 feishu_doc.read 或 feishu_doc.list_blocks 确认上下文，再用 feishu_doc 的写入/更新能力完成修改；修改成功后，再通过 feishu_drive.reply_comment 告知用户。",
-  );
-  lines.push(
-    "如果文档修改失败或定位不到锚点，不要假装成功；应在评论线程里明确回复失败原因或缺少的信息。",
-  );
-  lines.push(
-    "如果是阅读理解类任务（总结/解释/抽取），在确认上下文后可以直接输出最终答案文本；系统会自动把该答案回复到当前评论线程。",
-  );
-  lines.push(
-    "如果你已经通过 feishu_drive.reply_comment 或 feishu_drive.add_comment 完成了用户可见动作，最终请输出 NO_REPLY，避免重复发送。",
-  );
-  lines.push(
-    "如果用户在评论里直接提问，且普通文本回答即可，请直接输出答案文本；系统会自动把你的最终答案回复到当前评论线程。",
-  );
-  lines.push("如果你判断当前评论不需要任何用户可见动作，最终输出 NO_REPLY。");
-  lines.push(`请根据这次文档${actionLabel}事件决定接下来要做什么。`);
+  lines.push(`Decide what to do next based on this document ${actionLabel} event.`);
   return lines.join("\n");
 }
 

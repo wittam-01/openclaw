@@ -16,7 +16,7 @@ import {
 import { setFeishuRuntime } from "./runtime.js";
 import type { ResolvedFeishuAccount } from "./types.js";
 
-const handleFeishuMessageMock = vi.hoisted(() => vi.fn(async (_params: { event?: unknown }) => {}));
+const handleFeishuCommentEventMock = vi.hoisted(() => vi.fn(async () => {}));
 const createEventDispatcherMock = vi.hoisted(() => vi.fn());
 const createFeishuClientMock = vi.hoisted(() => vi.fn());
 const monitorWebSocketMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -30,13 +30,9 @@ vi.mock("./client.js", () => ({
   createFeishuClient: createFeishuClientMock,
 }));
 
-vi.mock("./bot.js", async () => {
-  const actual = await vi.importActual<typeof import("./bot.js")>("./bot.js");
-  return {
-    ...actual,
-    handleFeishuMessage: handleFeishuMessageMock,
-  };
-});
+vi.mock("./comment-handler.js", () => ({
+  handleFeishuCommentEvent: handleFeishuCommentEventMock,
+}));
 
 vi.mock("./monitor.transport.js", () => ({
   monitorWebSocket: monitorWebSocketMock,
@@ -259,18 +255,26 @@ describe("resolveDriveCommentSyntheticEvent", () => {
     expect(synthetic?.message.create_time).toBe("1774951528000");
 
     const text = extractSyntheticText(synthetic as FeishuMessageEvent);
-    expect(text).toContain("《评论事件处理需求》");
-    expect(text).toContain("添加了一条评论");
-    expect(text).toContain("收到评论事件后，也发送给agent");
-    expect(text).toContain("评论引用内容：im.message.receive_v1 消息触发实现");
-    expect(text).toContain("这条评论提到了你。");
-    expect(text).toContain("这是飞书文档评论事件，不是普通即时消息对话。");
-    expect(text).toContain("feishu_drive.reply_comment");
-    expect(text).toContain("最终请通过 feishu_drive.reply_comment 在该评论线程中回复答案");
     expect(text).toContain(
-      "也请在完成后通过 feishu_drive.reply_comment 在该评论线程中告知用户已修改完成",
+      'I added a comment in "评论事件处理需求": 收到评论事件后，也发送给agent',
     );
-    expect(text).toContain("最终请只输出 NO_REPLY");
+    expect(text).toContain("收到评论事件后，也发送给agent");
+    expect(text).toContain("Quoted content: im.message.receive_v1 消息触发实现");
+    expect(text).toContain("This comment mentioned you.");
+    expect(text).toContain(
+      "This is a Feishu document comment event, not a normal instant-message conversation.",
+    );
+    expect(text).toContain("feishu_drive.reply_comment");
+    expect(text).toContain(
+      "reply with the answer in that comment thread via feishu_drive.reply_comment",
+    );
+    expect(text).toContain(
+      "after finishing also use feishu_drive.reply_comment in that comment thread to tell the user the update is complete",
+    );
+    expect(text).toContain(
+      "keep it in the same language as the user's original comment or reply unless they explicitly ask for another language",
+    );
+    expect(text).toContain("output only NO_REPLY at the end");
   });
 
   it("falls back to the replies API to resolve add_reply text", async () => {
@@ -294,10 +298,13 @@ describe("resolveDriveCommentSyntheticEvent", () => {
     });
 
     const text = extractSyntheticText(synthetic as FeishuMessageEvent);
-    expect(text).toContain("添加了一条回复：跟进处理一下这个评论");
-    expect(text).toContain("原评论：收到评论事件后，也发送给agent");
-    expect(text).toContain("file_token：GS9sdtIlOonqKSx2PtrcRqgCnBe");
-    expect(text).toContain("事件类型：add_reply");
+    expect(text).toContain('I added a reply in "评论事件处理需求": 跟进处理一下这个评论');
+    expect(text).toContain("Original comment: 收到评论事件后，也发送给agent");
+    expect(text).toContain("file_token: GS9sdtIlOonqKSx2PtrcRqgCnBe");
+    expect(text).toContain("Event type: add_reply");
+    expect(text).toContain(
+      "keep it in the same language as the user's original comment or reply unless they explicitly ask for another language",
+    );
   });
 
   it("ignores self-authored comment notices", async () => {
@@ -321,7 +328,7 @@ describe("resolveDriveCommentSyntheticEvent", () => {
 describe("drive.notice.comment_add_v1 monitor handler", () => {
   beforeEach(() => {
     handlers = {};
-    handleFeishuMessageMock.mockClear();
+    handleFeishuCommentEventMock.mockClear();
     createEventDispatcherMock.mockReset();
     createFeishuClientMock.mockReset().mockReturnValue(makeOpenApiClient({}) as never);
     createFeishuThreadBindingManagerMock.mockReset().mockImplementation(() => ({
@@ -346,17 +353,21 @@ describe("drive.notice.comment_add_v1 monitor handler", () => {
     vi.restoreAllMocks();
   });
 
-  it("dispatches comment notices through handleFeishuMessage", async () => {
+  it("dispatches comment notices through handleFeishuCommentEvent", async () => {
     const onComment = await setupCommentMonitorHandler();
 
     await onComment(makeDriveCommentEvent());
 
-    expect(handleFeishuMessageMock).toHaveBeenCalledTimes(1);
-    const params = handleFeishuMessageMock.mock.calls[0]?.[0] as
-      | { event?: FeishuMessageEvent }
-      | undefined;
-    expect(params?.event).toBeDefined();
-    const text = extractSyntheticText(params?.event as FeishuMessageEvent);
-    expect(text).toContain("请根据这次文档评论事件决定接下来要做什么。");
+    expect(handleFeishuCommentEventMock).toHaveBeenCalledTimes(1);
+    expect(handleFeishuCommentEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: "default",
+        botOpenId: "ou_bot",
+        event: expect.objectContaining({
+          event_id: "10d9d60b990db39f96a4c2fd357fb877",
+          comment_id: "7623358762119646411",
+        }),
+      }),
+    );
   });
 });
